@@ -76,9 +76,12 @@ def predict():
     })
 
 # Test route
-@app.route('/')
-def home():
-    return "Chest X-Ray AI Backend Running!"
+@app.route("/", methods=["GET"])
+def health_check():
+    return {
+        "status": "ok",
+        "message": "Pneumosight AI Backend is running"
+    }, 200
 
 # Run Flask App
 if __name__ == "__main__":
