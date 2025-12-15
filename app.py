@@ -22,13 +22,22 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Load AI Model
-model_path = "chestXrayModelRevision.h5"
-model = load_model(model_path)
-print(f"Model loaded successfully! Path: {model_path}")
+# Lazy Load Model 
+MODEL_PATH = "chestXrayModelRevision.h5"
+model = None
 
-# Fungsi Prediksi
+def get_model():
+    global model
+    if model is None:
+        print("Loading AI model...")
+        model = load_model(MODEL_PATH)
+        print("Model loaded successfully!")
+    return model
+
+# Prediction Logic
 def predict_image(image_path):
+    model = get_model()
+
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise ValueError("Image cannot be read")
@@ -37,20 +46,18 @@ def predict_image(image_path):
     img = img_to_array(img) / 255.0
     img = np.expand_dims(img, axis=0)
 
-    pred = model.predict(img)[0][0]  # probability Normal
+    pred = model.predict(img)[0][0]
 
     if pred >= 0.5:
         pred_class = "Normal"
-        probability = pred  
+        probability = pred
     else:
         pred_class = "Pneumonia"
         probability = 1 - pred
 
-    print(f"[DEBUG] {image_path} | raw_pred={pred:.4f} | class={pred_class} | prob={probability:.2f}%")
-    print("Sending JSON:", {"prediction": pred_class, "probability": probability})
+    print(f"[DEBUG] {image_path} | raw_pred={pred:.4f} | class={pred_class}")
 
     return pred_class, float(probability)
-
 
 # API Endpoint
 @app.route('/predict', methods=['POST'])
