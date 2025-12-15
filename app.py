@@ -9,7 +9,13 @@ import uuid
 
 # Config Flask App
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173"], methods=["GET","POST"]) # Izinkan semua origin (React frontend bisa request)
+CORS(
+    app, 
+    origins=[
+        "http://localhost:5173", 
+        "https://pneumo-sight-rlf4ff5ed-alvens-projects-cf34feb6.vercel.app"
+        ], 
+    methods=["GET","POST"]) # Izinkan semua origin (React frontend bisa request)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Pastikan folder uploads ada
