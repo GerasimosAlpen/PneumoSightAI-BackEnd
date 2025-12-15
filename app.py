@@ -1,41 +1,41 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import img_to_array
-import numpy as np
-import cv2
 import os
 import uuid
 
-# Config Flask App
 app = Flask(__name__)
+
 CORS(
-    app, 
+    app,
     origins=[
-        "http://localhost:5173", 
+        "http://localhost:5173",
         "https://pneumo-sight-rlf4ff5ed-alvens-projects-cf34feb6.vercel.app"
-        ], 
-    methods=["GET","POST"]) # Izinkan semua origin (React frontend bisa request)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+    ],
+    methods=["GET", "POST"]
+)
 
-# Pastikan folder uploads ada
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Lazy Load Model 
 MODEL_PATH = "chestXrayModelRevision.h5"
 model = None
+
 
 def get_model():
     global model
     if model is None:
         print("Loading AI model...")
+        from tensorflow.keras.models import load_model
         model = load_model(MODEL_PATH)
         print("Model loaded successfully!")
     return model
 
-# Prediction Logic
+
 def predict_image(image_path):
+    import cv2
+    import numpy as np
+    from tensorflow.keras.preprocessing.image import img_to_array
+
     model = get_model()
 
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -49,46 +49,11 @@ def predict_image(image_path):
     pred = model.predict(img)[0][0]
 
     if pred >= 0.5:
-        pred_class = "Normal"
-        probability = pred
+        return "Normal", float(pred)
     else:
-        pred_class = "Pneumonia"
-        probability = 1 - pred
+        return "Pneumonia", float(1 - pred)
 
-    print(f"[DEBUG] {image_path} | raw_pred={pred:.4f} | class={pred_class}")
 
-    return pred_class, float(probability)
-
-# API Endpoint
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-
-    # Simpan sementara file
-    filename = str(uuid.uuid4()) + ".jpg"
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(file_path)
-
-    try:
-        pred_class, pred_prob = predict_image(file_path)
-    except Exception as e:
-        os.remove(file_path)
-        return jsonify({'error': str(e)}), 500
-
-    # Hapus file sementara
-    os.remove(file_path)
-
-    return jsonify({
-        'prediction': pred_class,
-        'probability': round(pred_prob, 2)
-    })
-
-# Test route
 @app.route("/", methods=["GET"])
 def health_check():
     return {
@@ -96,8 +61,29 @@ def health_check():
         "message": "Pneumosight AI Backend is running"
     }, 200
 
-# Run Flask App
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
 
+@app.route("/predict", methods=["POST"])
+def predict():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+
+    filename = f"{uuid.uuid4()}.jpg"
+    path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(path)
+
+    try:
+        prediction, probability = predict_image(path)
+    except Exception as e:
+        os.remove(path)
+        return jsonify({"error": str(e)}), 500
+
+    os.remove(path)
+
+    return jsonify({
+        "prediction": prediction,
+        "probability": round(probability, 2)
+    })
