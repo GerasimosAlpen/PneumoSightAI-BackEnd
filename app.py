@@ -23,28 +23,28 @@ print(f"Model loaded successfully! Path: {model_path}")
 
 # Fungsi Prediksi
 def predict_image(image_path):
-    # Baca gambar grayscale
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise ValueError("Image cannot be read")
-    
-    # Resize ke 150x150
-    img = cv2.resize(img, (150, 150))
-    
-    # Normalisasi
-    img = img_to_array(img) / 255.0
-    
-    # Tambah dimensi batch
-    img = np.expand_dims(img, axis=0)  # shape = (1,150,150,1)
-    
-    # Prediksi
-    pred_prob = model.predict(img)[0][0]
-    pred_class = "Normal" if pred_prob > 0.5 else "Pneumonia"
-    
-    # DEBUG: print prediksi
-    print(f"[DEBUG] Image: {image_path} | pred_prob={pred_prob:.4f} | pred_class={pred_class}")
 
-    return pred_class, float(pred_prob)
+    img = cv2.resize(img, (150, 150))
+    img = img_to_array(img) / 255.0
+    img = np.expand_dims(img, axis=0)
+
+    pred = model.predict(img)[0][0]  # probability Normal
+
+    if pred >= 0.5:
+        pred_class = "Normal"
+        probability = pred  
+    else:
+        pred_class = "Pneumonia"
+        probability = 1 - pred
+
+    print(f"[DEBUG] {image_path} | raw_pred={pred:.4f} | class={pred_class} | prob={probability:.2f}%")
+    print("Sending JSON:", {"prediction": pred_class, "probability": probability})
+
+    return pred_class, float(probability)
+
 
 # API Endpoint
 @app.route('/predict', methods=['POST'])
