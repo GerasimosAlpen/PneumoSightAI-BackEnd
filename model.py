@@ -2,8 +2,9 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import cv2
 import numpy as np
+import os
 
-MODEL_PATH = "chestXrayModelRevision.h5"
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "chestXrayModelRevision.h5")
 _model = None
 
 
@@ -27,7 +28,6 @@ def predict_image(image_path: str) -> dict:
     img = img_to_array(img) / 255.0
     img = np.expand_dims(img, axis=0)
 
-    # Output model = probability NORMAL
     pred = float(model.predict(img, verbose=0)[0][0])
 
     if pred >= 0.5:
